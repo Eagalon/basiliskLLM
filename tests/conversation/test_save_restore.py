@@ -15,7 +15,6 @@ from basilisk.conversation import (
 	Message,
 	MessageBlock,
 	MessageRoleEnum,
-	SystemMessage,
 )
 
 
@@ -67,25 +66,15 @@ class TestBasicSaveRestore:
 		assert restored_conversation.title is None
 
 	def test_save_restore_conversation_with_messages(
-		self, empty_conversation, ai_model, bskc_path, storage_path
+		self, empty_conversation, bskc_path, storage_path, message_block_factory
 	):
 		"""Test saving and restoring a conversation with messages."""
 		# Setup conversation with messages
 		empty_conversation.title = "Test Conversation"
-
-		request1 = Message(role=MessageRoleEnum.USER, content="Test message 1")
-		response1 = Message(
-			role=MessageRoleEnum.ASSISTANT, content="Test response 1"
-		)
-		block1 = MessageBlock(
-			request=request1, response=response1, model=ai_model
-		)
-
-		request2 = Message(role=MessageRoleEnum.USER, content="Test message 2")
-		block2 = MessageBlock(request=request2, model=ai_model)
-
-		empty_conversation.add_block(block1)
-		empty_conversation.add_block(block2)
+		first_block = message_block_factory(include_response=True)
+		second_block = message_block_factory(include_response=False)
+		empty_conversation.add_block(first_block)
+		empty_conversation.add_block(second_block)
 
 		# Save conversation
 		empty_conversation.save(bskc_path)
@@ -101,11 +90,11 @@ class TestBasicSaveRestore:
 		# Check first message
 		assert (
 			restored_conversation.messages[0].request.content
-			== "Test message 1"
+			== first_block.request.content
 		)
 		assert (
 			restored_conversation.messages[0].response.content
-			== "Test response 1"
+			== first_block.response.content
 		)
 		assert restored_conversation.messages[0].model.provider_id == "openai"
 		assert restored_conversation.messages[0].model.model_id == "test_model"
@@ -113,7 +102,7 @@ class TestBasicSaveRestore:
 		# Check second message
 		assert (
 			restored_conversation.messages[1].request.content
-			== "Test message 2"
+			== second_block.request.content
 		)
 		assert restored_conversation.messages[1].response is None
 		assert restored_conversation.messages[1].model.provider_id == "openai"
@@ -133,9 +122,9 @@ class TestSystemMessageSaveRestore:
 	"""Tests for saving and restoring conversations with system messages."""
 
 	@pytest.fixture
-	def bskc_path(self, tmp_path):
+	def bskc_path(self, tmp_path, request):
 		"""Return a test conversation file path."""
-		return f"{tmp_path}{os.sep}test_conversation.bskc"
+		return f"{tmp_path}{os.sep}{request.node.name}.bskc"
 
 	@pytest.fixture
 	def storage_path(self):
@@ -143,25 +132,23 @@ class TestSystemMessageSaveRestore:
 		return UPath("memory://test_system_restore")
 
 	def test_save_restore_with_system_messages(
-		self, empty_conversation, ai_model, bskc_path, storage_path
+		self,
+		empty_conversation,
+		bskc_path,
+		storage_path,
+		message_block_factory,
+		system_message_factory,
 	):
 		"""Test saving and restoring a conversation with system messages."""
 		# Create system messages
-		system1 = SystemMessage(
-			role=MessageRoleEnum.SYSTEM, content="System instructions 1"
-		)
-		system2 = SystemMessage(
-			role=MessageRoleEnum.SYSTEM, content="System instructions 2"
-		)
+		system1 = system_message_factory()
+		system2 = system_message_factory()
 
 		# Create message blocks
-		request1 = Message(role=MessageRoleEnum.USER, content="Test message 1")
-		block1 = MessageBlock(request=request1, model=ai_model)
+		block1 = message_block_factory(include_response=True)
 
-		request2 = Message(role=MessageRoleEnum.USER, content="Test message 2")
-		block2 = MessageBlock(request=request2, model=ai_model)
+		block2 = message_block_factory(include_response=False)
 
-		# Add blocks with system messages
 		empty_conversation.add_block(block1, system1)
 		empty_conversation.add_block(block2, system2)
 
@@ -172,30 +159,48 @@ class TestSystemMessageSaveRestore:
 		# Verify restored conversation
 		assert isinstance(restored_conversation, Conversation)
 		assert len(restored_conversation.systems) == 2
+		assert restored_conversation.systems[0].content == system1.content
+		assert restored_conversation.systems[1].content == system2.content
+		assert restored_conversation.messages[0].system_index == 0
+		assert restored_conversation.messages[1].system_index == 1
+		# Verify message contents
 		assert (
-			restored_conversation.systems[0].content == "System instructions 1"
+			restored_conversation.messages[0].request.content
+			== block1.request.content
 		)
 		assert (
-			restored_conversation.systems[1].content == "System instructions 2"
+			restored_conversation.messages[0].response.content
+			== block1.response.content
 		)
+		assert (
+			restored_conversation.messages[1].request.content
+			== block2.request.content
+		)
+		assert restored_conversation.messages[1].response is None
+		assert restored_conversation.messages[0].model.provider_id == "openai"
+		assert restored_conversation.messages[0].model.model_id == "test_model"
+		assert restored_conversation.messages[1].model.provider_id == "openai"
+		assert restored_conversation.messages[1].model.model_id == "test_model"
+		# Verify system message indices
 		assert restored_conversation.messages[0].system_index == 0
 		assert restored_conversation.messages[1].system_index == 1
 
 	def test_save_restore_with_shared_system_message(
-		self, empty_conversation, ai_model, bskc_path, storage_path
+		self,
+		empty_conversation,
+		bskc_path,
+		storage_path,
+		message_block_factory,
+		system_message_factory,
 	):
 		"""Test saving and restoring a conversation with shared system messages."""
 		# Create shared system message
-		system = SystemMessage(
-			role=MessageRoleEnum.SYSTEM, content="Shared system instructions"
-		)
+		system = system_message_factory()
 
 		# Create message blocks
-		request1 = Message(role=MessageRoleEnum.USER, content="Test message 1")
-		block1 = MessageBlock(request=request1, model=ai_model)
+		block1 = message_block_factory(include_response=True)
 
-		request2 = Message(role=MessageRoleEnum.USER, content="Test message 2")
-		block2 = MessageBlock(request=request2, model=ai_model)
+		block2 = message_block_factory(include_response=False)
 
 		# Add blocks with the same system message
 		empty_conversation.add_block(block1, system)
@@ -208,10 +213,28 @@ class TestSystemMessageSaveRestore:
 		# Verify restored conversation
 		assert isinstance(restored_conversation, Conversation)
 		assert len(restored_conversation.systems) == 1
+		assert restored_conversation.systems[0].content == system.content
+		assert restored_conversation.messages[0].system_index == 0
+		assert restored_conversation.messages[1].system_index == 0
+		# Verify message contents
 		assert (
-			restored_conversation.systems[0].content
-			== "Shared system instructions"
+			restored_conversation.messages[0].request.content
+			== block1.request.content
 		)
+		assert (
+			restored_conversation.messages[0].response.content
+			== block1.response.content
+		)
+		assert (
+			restored_conversation.messages[1].request.content
+			== block2.request.content
+		)
+		assert restored_conversation.messages[1].response is None
+		assert restored_conversation.messages[0].model.provider_id == "openai"
+		assert restored_conversation.messages[0].model.model_id == "test_model"
+		assert restored_conversation.messages[1].model.provider_id == "openai"
+		assert restored_conversation.messages[1].model.model_id == "test_model"
+		# Verify system message indices
 		assert restored_conversation.messages[0].system_index == 0
 		assert restored_conversation.messages[1].system_index == 0
 
@@ -220,14 +243,14 @@ class TestAttachmentSaveRestore:
 	"""Tests for saving and restoring conversations with attachments."""
 
 	@pytest.fixture
-	def bskc_path(self, tmp_path):
+	def bskc_path(self, tmp_path, request):
 		"""Return a test conversation file path."""
-		return f"{tmp_path}{os.sep}test_conversation.bskc"
+		return f"{tmp_path}{os.sep}{request.node.name}.bskc"
 
 	@pytest.fixture
-	def text_content(self):
+	def text_content(self, faker):
 		"""Return test text content."""
-		return "This is a test file content"
+		return "\n".join(faker.paragraphs(100))
 
 	@pytest.fixture
 	def text_path(self, tmp_path, text_content):
@@ -249,21 +272,17 @@ class TestAttachmentSaveRestore:
 		return ImageFile(location=UPath(url))
 
 	def test_save_restore_with_image_attachment(
-		self, empty_conversation, ai_model, image_file, bskc_path
+		self, empty_conversation, image_file, bskc_path, message_block_factory
 	):
 		"""Test saving and restoring a conversation with image attachments."""
 		# Create image attachment
 		image_attachment = ImageFile(location=image_file)
 
 		# Create message with image attachment
-		request = Message(
-			role=MessageRoleEnum.USER,
-			content="Test message with image",
-			attachments=[image_attachment],
-		)
 
-		# Add message to conversation
-		block = MessageBlock(request=request, model=ai_model)
+		block = message_block_factory(
+			include_response=True, attachments=[image_attachment]
+		)
 		empty_conversation.add_block(block)
 
 		# Save conversation
@@ -276,7 +295,16 @@ class TestAttachmentSaveRestore:
 		# Verify restored conversation
 		assert isinstance(restored_conversation, Conversation)
 		assert len(restored_conversation.messages) == 1
-
+		assert (
+			restored_conversation.messages[0].request.content
+			== block.request.content
+		)
+		assert (
+			restored_conversation.messages[0].response.content
+			== block.response.content
+		)
+		assert restored_conversation.messages[0].model.provider_id == "openai"
+		assert restored_conversation.messages[0].model.model_id == "test_model"
 		# Verify restored attachment
 		restored_attachment = restored_conversation.messages[
 			0
@@ -288,21 +316,18 @@ class TestAttachmentSaveRestore:
 	def test_save_restore_with_text_attachment(
 		self,
 		empty_conversation,
-		ai_model,
 		text_attachment,
 		text_content,
 		bskc_path,
+		message_block_factory,
 	):
 		"""Test saving and restoring a conversation with text file attachments."""
 		# Create message with text attachment
-		request = Message(
-			role=MessageRoleEnum.USER,
-			content="Test message with text file",
-			attachments=[text_attachment],
+		block = message_block_factory(
+			include_response=True, attachments=[text_attachment]
 		)
 
 		# Add message to conversation
-		block = MessageBlock(request=request, model=ai_model)
 		empty_conversation.add_block(block)
 
 		# Save conversation
@@ -315,6 +340,16 @@ class TestAttachmentSaveRestore:
 		# Verify restored conversation
 		assert isinstance(restored_conversation, Conversation)
 		assert len(restored_conversation.messages) == 1
+		assert (
+			restored_conversation.messages[0].request.content
+			== block.request.content
+		)
+		assert (
+			restored_conversation.messages[0].response.content
+			== block.response.content
+		)
+		assert restored_conversation.messages[0].model.provider_id == "openai"
+		assert restored_conversation.messages[0].model.model_id == "test_model"
 
 		# Verify restored attachment
 		restored_attachment = restored_conversation.messages[
@@ -367,22 +402,20 @@ class TestAttachmentSaveRestore:
 	def test_save_restore_with_multiple_attachments(
 		self,
 		empty_conversation,
-		ai_model,
 		text_attachment,
 		image_attachment,
 		url_image,
 		bskc_path,
+		message_block_factory,
 	):
 		"""Test saving and restoring a conversation with multiple attachments."""
 		# Create message with multiple attachments
-		request = Message(
-			role=MessageRoleEnum.USER,
-			content="Test message with multiple attachments",
-			attachments=[text_attachment, image_attachment, url_image],
-		)
+		attachments = [text_attachment, image_attachment, url_image]
 
 		# Add message to conversation
-		block = MessageBlock(request=request, model=ai_model)
+		block = message_block_factory(
+			include_response=True, attachments=attachments
+		)
 		empty_conversation.add_block(block)
 
 		# Save conversation
@@ -395,7 +428,16 @@ class TestAttachmentSaveRestore:
 		# Verify restored conversation
 		assert isinstance(restored_conversation, Conversation)
 		assert len(restored_conversation.messages) == 1
-
+		assert (
+			restored_conversation.messages[0].request.content
+			== block.request.content
+		)
+		assert (
+			restored_conversation.messages[0].response.content
+			== block.response.content
+		)
+		assert restored_conversation.messages[0].model.provider_id == "openai"
+		assert restored_conversation.messages[0].model.model_id == "test_model"
 		# Verify restored attachments
 		restored_attachments = restored_conversation.messages[
 			0

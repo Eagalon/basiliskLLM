@@ -55,6 +55,7 @@ requires-poetry = ">=2.0"
 
 [tool.poetry.group.dev.dependencies]
 commitizen = "^4.4.1"
+faker = "^37.0.0"
 pre-commit = "^4.1.0"
 pytest = "^8.3.5"
 pytest-cov = "^6.0.0"

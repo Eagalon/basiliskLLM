@@ -28,37 +28,62 @@ def ai_model():
 
 
 @pytest.fixture
-def user_message():
-	"""Return a test user message."""
-	return Message(role=MessageRoleEnum.USER, content="Test message")
+def user_message_factory(faker):
+	"""Return a factory function for creating user messages."""
+
+	def user_message(attachments=None):
+		"""Return a test user message."""
+		return Message(
+			role=MessageRoleEnum.USER,
+			content=faker.paragraph(),
+			attachments=attachments,
+		)
+
+	return user_message
 
 
 @pytest.fixture
-def assistant_message():
-	"""Return a test assistant message."""
-	return Message(role=MessageRoleEnum.ASSISTANT, content="Test response")
+def assistant_message_factory(faker):
+	"""Return a factory function for creating assistant messages."""
+
+	def assistant_message():
+		"""Return a test assistant message."""
+		return Message(
+			role=MessageRoleEnum.ASSISTANT,
+			content="\n".join(faker.paragraphs(10)),
+		)
+
+	return assistant_message
 
 
 @pytest.fixture
-def system_message():
-	"""Return a test system message."""
-	return SystemMessage(
-		role=MessageRoleEnum.SYSTEM, content="System instructions"
-	)
+def system_message_factory(faker):
+	"""Return a factory function for creating system messages."""
+
+	def system_message():
+		"""Return a test system message."""
+		return SystemMessage(
+			role=MessageRoleEnum.SYSTEM, content=faker.paragraph()
+		)
+
+	return system_message
 
 
 @pytest.fixture
-def message_block(ai_model, user_message):
-	"""Return a test message block."""
-	return MessageBlock(request=user_message, model=ai_model)
+def message_block_factory(
+	ai_model, user_message_factory, assistant_message_factory
+):
+	"""Return a factory function for creating message blocks."""
 
+	def message_block(include_response=False, attachments=None):
+		"""Return a test message block."""
+		response = None
+		if include_response:
+			response = assistant_message_factory()
+		request = user_message_factory(attachments=attachments)
+		return MessageBlock(request=request, model=ai_model, response=response)
 
-@pytest.fixture
-def message_block_with_response(ai_model, user_message, assistant_message):
-	"""Return a test message block with response."""
-	return MessageBlock(
-		request=user_message, response=assistant_message, model=ai_model
-	)
+	return message_block
 
 
 @pytest.fixture

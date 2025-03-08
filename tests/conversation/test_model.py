@@ -9,7 +9,6 @@ from basilisk.conversation import (
 	Message,
 	MessageBlock,
 	MessageRoleEnum,
-	SystemMessage,
 )
 from basilisk.provider_ai_model import AIModelInfo
 
@@ -30,22 +29,27 @@ class TestAIModelAndMessages:
 		with pytest.raises(ValidationError):
 			Message(role="invalid_role", content="test")
 
-	def test_create_message_block(self, ai_model, user_message):
+	def test_create_message_block(self, ai_model, user_message_factory):
 		"""Test creating a message block."""
+		user_message = user_message_factory()
 		block = MessageBlock(request=user_message, model=ai_model)
-		assert block.request.content == "Test message"
+		assert block.request.content == user_message.content
 		assert block.request.role == MessageRoleEnum.USER
 		assert block.response is None
 		assert block.model.provider_id == "openai"
 		assert block.model.model_id == "test_model"
 
 	def test_create_message_block_with_response(
-		self, message_block_with_response
+		self, ai_model, user_message_factory, assistant_message_factory
 	):
 		"""Test creating a message block with a response."""
-		block = message_block_with_response
-		assert block.request.content == "Test message"
-		assert block.response.content == "Test response"
+		user_message = user_message_factory()
+		assistant_message = assistant_message_factory()
+		block = MessageBlock(
+			request=user_message, response=assistant_message, model=ai_model
+		)
+		assert block.request.content == user_message.content
+		assert block.response.content == assistant_message.content
 		assert block.model.provider_id == "openai"
 		assert block.model.model_id == "test_model"
 		assert block.request.role == MessageRoleEnum.USER
@@ -55,16 +59,18 @@ class TestAIModelAndMessages:
 class TestMessageBlockValidation:
 	"""Tests for message block validation."""
 
-	def test_invalid_request_role(self, ai_model, assistant_message):
+	def test_invalid_request_role(self, ai_model, assistant_message_factory):
 		"""Test invalid request role."""
+		assistant_message = assistant_message_factory()
 		with pytest.raises(ValidationError) as exc_info:
 			MessageBlock(request=assistant_message, model=ai_model)
 			assert exc_info.group_contains(
 				ValueError, "Request message must be from the user."
 			)
 
-	def test_invalid_response_role(self, ai_model, user_message):
+	def test_invalid_response_role(self, ai_model, user_message_factory):
 		"""Test invalid response role."""
+		user_message = user_message_factory()
 		with pytest.raises(ValidationError) as exc_info:
 			# Using user message as response (invalid)
 			MessageBlock(
@@ -74,19 +80,23 @@ class TestMessageBlockValidation:
 				ValueError, "Response message must be from the assistant."
 			)
 
-	def test_message_block_no_request(self, ai_model, assistant_message):
+	def test_message_block_no_request(
+		self, ai_model, assistant_message_factory
+	):
 		"""Test message block with no request."""
+		assistant_message = assistant_message_factory()
 		with pytest.raises(ValidationError):
 			MessageBlock(response=assistant_message, model=ai_model)
 
 	def test_message_block_no_attachments_in_response(
-		self, ai_model, attachment
+		self, ai_model, attachment, faker
 	):
 		"""Test message block with no attachments in response."""
-		req_msg = Message(role=MessageRoleEnum.USER, content="test")
+		msg_content = faker.paragraph()
+		req_msg = Message(role=MessageRoleEnum.USER, content=msg_content)
 		res_msg = Message(
 			role=MessageRoleEnum.ASSISTANT,
-			content="test",
+			content=msg_content,
 			attachments=[attachment],
 		)
 
@@ -121,8 +131,11 @@ class TestConversationBasics:
 		with pytest.raises(ValidationError):
 			Conversation.model_validate_json(json)
 
-	def test_add_block_without_system(self, empty_conversation, message_block):
+	def test_add_block_without_system(
+		self, empty_conversation, message_block_factory
+	):
 		"""Test adding a message block to a conversation without a system message."""
+		message_block = message_block_factory()
 		empty_conversation.add_block(message_block)
 
 		assert len(empty_conversation.messages) == 1
@@ -131,9 +144,11 @@ class TestConversationBasics:
 		assert len(empty_conversation.systems) == 0
 
 	def test_add_block_with_system(
-		self, empty_conversation, message_block, system_message
+		self, empty_conversation, message_block_factory, system_message_factory
 	):
 		"""Test adding a message block to a conversation with a system message."""
+		message_block = message_block_factory()
+		system_message = system_message_factory()
 		empty_conversation.add_block(message_block, system_message)
 
 		assert len(empty_conversation.messages) == 1
@@ -146,52 +161,15 @@ class TestConversationBasics:
 class TestConversationWithMultipleBlocks:
 	"""Tests for conversations with multiple message blocks."""
 
-	@pytest.fixture
-	def first_block(self, ai_model):
-		"""Return a first message block."""
-		req_msg = Message(role=MessageRoleEnum.USER, content="First message")
-		return MessageBlock(request=req_msg, model=ai_model)
-
-	@pytest.fixture
-	def second_block(self, ai_model):
-		"""Return a second message block."""
-		req_msg = Message(role=MessageRoleEnum.USER, content="Second message")
-		return MessageBlock(request=req_msg, model=ai_model)
-
-	@pytest.fixture
-	def third_block(self, ai_model):
-		"""Return a third message block."""
-		req_msg = Message(role=MessageRoleEnum.USER, content="Third message")
-		return MessageBlock(request=req_msg, model=ai_model)
-
-	@pytest.fixture
-	def first_system(self):
-		"""Return a first system message."""
-		return SystemMessage(
-			role=MessageRoleEnum.SYSTEM, content="First system instructions"
-		)
-
-	@pytest.fixture
-	def second_system(self):
-		"""Return a second system message."""
-		return SystemMessage(
-			role=MessageRoleEnum.SYSTEM, content="Second system instructions"
-		)
-
-	@pytest.fixture
-	def third_system(self):
-		"""Return a third system message."""
-		return SystemMessage(
-			role=MessageRoleEnum.SYSTEM, content="Third system instructions"
-		)
-
 	def test_add_block_with_duplicate_system(
-		self, empty_conversation, first_block, second_block, system_message
+		self, empty_conversation, message_block_factory, system_message_factory
 	):
 		"""Test adding blocks with duplicate system messages."""
+		first_block = message_block_factory()
+		second_block = message_block_factory()
+		system_message = system_message_factory()
 		empty_conversation.add_block(first_block, system_message)
 		empty_conversation.add_block(second_block, system_message)
-
 		assert len(empty_conversation.messages) == 2
 		assert empty_conversation.messages[0].system_index == 0
 		assert empty_conversation.messages[1].system_index == 0
@@ -200,39 +178,45 @@ class TestConversationWithMultipleBlocks:
 		)  # Only one unique system message
 
 	def test_add_block_with_multiple_systems(
-		self,
-		empty_conversation,
-		first_block,
-		second_block,
-		first_system,
-		second_system,
+		self, empty_conversation, message_block_factory, system_message_factory
 	):
 		"""Test adding blocks with multiple different system messages."""
+		first_block = message_block_factory()
+		second_block = message_block_factory()
+		first_system = system_message_factory()
+		second_system = system_message_factory()
 		empty_conversation.add_block(first_block, first_system)
 		empty_conversation.add_block(second_block, second_system)
-
 		assert len(empty_conversation.messages) == 2
 		assert empty_conversation.messages[0].system_index == 0
 		assert empty_conversation.messages[1].system_index == 1
 		assert len(empty_conversation.systems) == 2
 		assert first_system in empty_conversation.systems
 		assert second_system in empty_conversation.systems
+		assert empty_conversation.messages[0] == first_block
+		assert empty_conversation.messages[1] == second_block
 
 	def test_remove_block_without_system(
-		self, empty_conversation, message_block
+		self, empty_conversation, message_block_factory
 	):
 		"""Test removing a message block without a system message."""
+		message_block = message_block_factory()
 		empty_conversation.add_block(message_block)
 		assert len(empty_conversation.messages) == 1
-
+		assert empty_conversation.messages[0] == message_block
+		assert empty_conversation.messages[0].system_index is None
+		assert len(empty_conversation.systems) == 0
 		empty_conversation.remove_block(message_block)
 		assert len(empty_conversation.messages) == 0
 		assert len(empty_conversation.systems) == 0
+		assert message_block not in empty_conversation.messages
 
 	def test_remove_block_with_system(
-		self, empty_conversation, message_block, system_message
+		self, empty_conversation, message_block_factory, system_message_factory
 	):
 		"""Test removing a message block with a system message."""
+		message_block = message_block_factory()
+		system_message = system_message_factory()
 		empty_conversation.add_block(message_block, system_message)
 
 		assert len(empty_conversation.messages) == 1
@@ -240,15 +224,17 @@ class TestConversationWithMultipleBlocks:
 		assert empty_conversation.messages[0] == message_block
 		assert system_message in empty_conversation.systems
 		assert len(empty_conversation.systems) == 1
-
 		empty_conversation.remove_block(message_block)
 		assert len(empty_conversation.messages) == 0
 		assert len(empty_conversation.systems) == 0
 
 	def test_remove_block_with_shared_system(
-		self, empty_conversation, first_block, second_block, system_message
+		self, empty_conversation, message_block_factory, system_message_factory
 	):
 		"""Test removing a block that shares a system message with another block."""
+		first_block = message_block_factory()
+		second_block = message_block_factory()
+		system_message = system_message_factory()
 		empty_conversation.add_block(first_block, system_message)
 		empty_conversation.add_block(second_block, system_message)
 
@@ -268,27 +254,23 @@ class TestConversationWithMultipleBlocks:
 		)  # System still used by remaining block
 
 	def test_remove_block_with_multiple_systems(
-		self,
-		empty_conversation,
-		first_block,
-		second_block,
-		third_block,
-		first_system,
-		second_system,
+		self, empty_conversation, message_block_factory, system_message_factory
 	):
 		"""Test removing blocks with multiple system messages."""
+		first_block = message_block_factory()
+		second_block = message_block_factory()
+		first_system = system_message_factory()
+		second_system = system_message_factory()
+		third_block = message_block_factory()
 		empty_conversation.add_block(first_block, first_system)
 		empty_conversation.add_block(second_block, second_system)
-		empty_conversation.add_block(
-			third_block, first_system
-		)  # Reusing first system
+		empty_conversation.add_block(third_block, first_system)
 
 		assert len(empty_conversation.messages) == 3
 		assert empty_conversation.messages[0].system_index == 0
 		assert empty_conversation.messages[1].system_index == 1
 		assert empty_conversation.messages[2].system_index == 0
 		assert len(empty_conversation.systems) == 2
-
 		empty_conversation.remove_block(second_block)
 		assert len(empty_conversation.messages) == 2
 		assert empty_conversation.messages[0].system_index == 0
@@ -298,20 +280,18 @@ class TestConversationWithMultipleBlocks:
 		assert second_system not in empty_conversation.systems
 
 	def test_remove_block_with_index_adjustment(
-		self,
-		empty_conversation,
-		first_block,
-		second_block,
-		third_block,
-		first_system,
-		second_system,
-		third_system,
+		self, empty_conversation, message_block_factory, system_message_factory
 	):
 		"""Test system index adjustment when removing a system."""
+		first_block = message_block_factory()
+		second_block = message_block_factory()
+		third_block = message_block_factory()
+		first_system = system_message_factory()
+		second_system = system_message_factory()
+		third_system = system_message_factory()
 		empty_conversation.add_block(first_block, first_system)
 		empty_conversation.add_block(second_block, second_system)
 		empty_conversation.add_block(third_block, third_system)
-
 		assert len(empty_conversation.messages) == 3
 		assert empty_conversation.messages[0].system_index == 0
 		assert empty_conversation.messages[1].system_index == 1
