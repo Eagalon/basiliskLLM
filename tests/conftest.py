@@ -1,9 +1,12 @@
 """Common test fixtures for basiliskLLM."""
 
+import builtins
+
 import pytest
 from PIL import Image
 from upath import UPath
 
+from basilisk.config.account_config import Account
 from basilisk.conversation import (
 	AttachmentFile,
 	Conversation,
@@ -19,6 +22,11 @@ from basilisk.message_segment_manager import (
 	MessageSegmentType,
 )
 from basilisk.provider_ai_model import AIModelInfo
+
+
+def pytest_configure(config):
+	"""Configure pytest to use a no-op translation function."""
+	builtins._ = lambda x: x  # noqa: E731
 
 
 @pytest.fixture
@@ -137,3 +145,11 @@ def message_segments():
 def segment_manager(message_segments):
 	"""Return a message segment manager with test segments."""
 	return MessageSegmentManager(message_segments)
+
+
+def fake_account():
+	"""Create a mock account for testing."""
+	account = Account(
+		name="Test Account", key="test_key", url="https://api.example.com"
+	)
+	return account

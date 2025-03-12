@@ -11,7 +11,12 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional
 
 from basilisk.consts import APP_NAME, APP_SOURCE_URL
-from basilisk.conversation import Conversation, Message, MessageBlock
+from basilisk.conversation import (
+	Conversation,
+	Message,
+	MessageBlock,
+	SystemMessage,
+)
 from basilisk.provider_ai_model import ProviderAIModel
 from basilisk.provider_capability import ProviderCapability
 
@@ -104,7 +109,7 @@ class BaseEngine(ABC):
 		self,
 		new_block: MessageBlock,
 		conversation: Conversation,
-		system_message: Message | None = None,
+		system_message: SystemMessage | None = None,
 	) -> list[Message]:
 		"""Prepares message history for API requests.
 

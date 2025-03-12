@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Iterator
 
 from anthropic import Anthropic
 from anthropic.types import Message as AnthropicMessage
-from anthropic.types import TextBlock
 
 from basilisk.conversation import (
 	AttachmentFile,
@@ -273,7 +272,7 @@ class AnthropicEngine(BaseEngine):
 		Returns:
 			Message in Anthropic API format with role and content.
 		"""
-		contents = [TextBlock(text=message.content, type="text")]
+		contents = [{"text": message.content, "type": "text"}]
 		if message.attachments:
 			# TODO: implement "context" and "title" for documents
 			# TODO: add support for custom content document format
@@ -429,7 +428,7 @@ class AnthropicEngine(BaseEngine):
 
 	def completion_response_with_stream(
 		self, stream: Stream[MessageStreamEvent]
-	) -> Iterator[TextBlock | dict]:
+	) -> Iterator[str]:
 		"""Processes streaming response from Anthropic API.
 
 		Args:
