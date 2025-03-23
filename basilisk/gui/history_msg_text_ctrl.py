@@ -53,9 +53,7 @@ class HistoryMsgTextCtrl(wx.TextCtrl):
 	search capabilities, and accessibility features.
 	"""
 
-	def __init__(
-		self, parent: ConversationTab, size: tuple[int, int] = (800, 400)
-	):
+	def __init__(self, parent: ConversationTab):
 		"""Initialize the history message text control.
 
 		Args:
@@ -63,12 +61,7 @@ class HistoryMsgTextCtrl(wx.TextCtrl):
 			size: Initial size of the control
 		"""
 		super().__init__(
-			parent,
-			size=size,
-			style=wx.TE_MULTILINE
-			| wx.TE_READONLY
-			| wx.TE_WORDWRAP
-			| wx.HSCROLL,
+			parent, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_WORDWRAP
 		)
 
 		self.segment_manager = MessageSegmentManager()

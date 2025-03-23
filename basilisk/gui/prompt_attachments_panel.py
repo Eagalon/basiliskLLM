@@ -73,35 +73,53 @@ class PromptAttachmentsPanel(wx.Panel):
 
 	def init_ui(self):
 		"""Initialize the user interface components."""
-		sizer = wx.BoxSizer(wx.VERTICAL)
-
-		# Prompt input area
+		main_sizer = wx.BoxSizer(wx.HORIZONTAL)
+		prompt_sizer = wx.BoxSizer(wx.VERTICAL)
 		prompt_label = wx.StaticText(
 			self,
 			# Translators: This is a label for user prompt
 			label=_("&Prompt:"),
 		)
-		sizer.Add(prompt_label, proportion=0, flag=wx.EXPAND)
-
-		self.prompt = wx.TextCtrl(
-			self,
-			size=(800, 100),
-			style=wx.TE_MULTILINE | wx.TE_WORDWRAP | wx.HSCROLL,
+		font = prompt_label.GetFont()
+		font.SetWeight(wx.FONTWEIGHT_BOLD)
+		prompt_label.SetFont(font)
+		prompt_sizer.Add(
+			prompt_label, proportion=0, flag=wx.EXPAND | wx.ALL, border=5
 		)
+		self.prompt = wx.TextCtrl(
+			self, style=wx.TE_MULTILINE | wx.TE_WORDWRAP, size=(-1, 100)
+		)
+		prompt_font = self.prompt.GetFont()
+		prompt_font.SetPointSize(prompt_font.GetPointSize() + 1)
+		self.prompt.SetFont(prompt_font)
 		self.prompt.Bind(wx.EVT_KEY_DOWN, self.on_prompt_key_down)
 		self.prompt.Bind(wx.EVT_CONTEXT_MENU, self.on_prompt_context_menu)
 		self.prompt.Bind(wx.EVT_TEXT_PASTE, self.on_paste)
-		sizer.Add(self.prompt, proportion=1, flag=wx.EXPAND)
+		prompt_sizer.Add(
+			self.prompt,
+			proportion=1,
+			flag=wx.EXPAND | wx.Left | wx.Right | wx.BOTTOM,
+			border=5,
+		)
+		main_sizer.Add(
+			prompt_sizer, proportion=1, flag=wx.EXPAND | wx.RIGHT, border=5
+		)
+		self.attachments_sizer = wx.BoxSizer(wx.VERTICAL)
 		# Attachments list
 		self.attachments_list_label = wx.StaticText(
 			self,
 			# Translators: This is a label for attachments
 			label=_("&Attachments:"),
 		)
-		sizer.Add(self.attachments_list_label, proportion=0, flag=wx.EXPAND)
+		self.attachments_sizer.Add(
+			self.attachments_list_label,
+			proportion=0,
+			flag=wx.EXPAND | wx.ALL,
+			border=5,
+		)
 
 		self.attachments_list = wx.ListCtrl(
-			self, size=(800, 100), style=wx.LC_REPORT
+			self, style=wx.LC_REPORT, size=(250, -1)
 		)
 		self.attachments_list.Bind(
 			wx.EVT_CONTEXT_MENU, self.on_attachments_context_menu
@@ -109,31 +127,38 @@ class PromptAttachmentsPanel(wx.Panel):
 		self.attachments_list.Bind(
 			wx.EVT_KEY_DOWN, self.on_attachments_key_down
 		)
-		self.attachments_list.InsertColumn(
-			0,
+		self.attachments_list.AppendColumn(
 			# Translators: This is a label for attachment name
 			_("Name"),
+			width=120,
 		)
-		self.attachments_list.InsertColumn(
-			1,
+		self.attachments_list.AppendColumn(
 			# Translators: This is a label for attachment size
 			_("Size"),
+			width=60,
 		)
-		self.attachments_list.InsertColumn(
-			2,
+		self.attachments_list.AppendColumn(
 			# Translators: This is a label for attachment location
 			_("Location"),
+			width=wx.LIST_AUTOSIZE_USEHEADER,
 		)
-		self.attachments_list.SetColumnWidth(0, 200)
-		self.attachments_list.SetColumnWidth(1, 100)
-		self.attachments_list.SetColumnWidth(2, 500)
-		sizer.Add(self.attachments_list, proportion=0, flag=wx.ALL | wx.EXPAND)
-
-		self.SetSizer(sizer)
-
+		self.attachments_sizer.Add(
+			self.attachments_list,
+			proportion=1,
+			flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM,
+			border=5,
+		)
+		main_sizer.Add(
+			self.attachments_sizer,
+			proportion=1,
+			flag=wx.EXPAND | wx.LEFT,
+			border=5,
+		)
+		self.SetSizer(main_sizer)
 		# Initially hide attachments section
 		self.attachments_list_label.Hide()
 		self.attachments_list.Hide()
+		self.Layout()
 
 	@property
 	def selected_attachment_file(self) -> Optional[AttachmentFile | ImageFile]:
@@ -172,7 +197,7 @@ class PromptAttachmentsPanel(wx.Panel):
 			self.GetParent(), "insert_previous_prompt", None
 		)
 		if previous_prompt:
-			self.prompt_shortcuts[(wx.MOD_NONE, wx.WXK_UP)] = previous_prompt
+			self.prompt_shortcuts[(wx.MOD_CONTROL, wx.WXK_UP)] = previous_prompt
 
 	def on_prompt_key_down(self, event: wx.KeyEvent):
 		"""Handle keyboard shortcuts for the prompt text control.
@@ -506,7 +531,7 @@ class PromptAttachmentsPanel(wx.Panel):
 			event: Event triggered by the remove attachment action
 		"""
 		selection = self.attachments_list.GetFirstSelected()
-		current_attachment = self.selected_attachment_file()
+		current_attachment = self.selected_attachment_file
 		if not current_attachment:
 			return
 
@@ -544,12 +569,9 @@ class PromptAttachmentsPanel(wx.Panel):
 		if not self.attachment_files:
 			self.attachments_list_label.Hide()
 			self.attachments_list.Hide()
-			self.Layout()
 			return
-
 		self.attachments_list_label.Show()
 		self.attachments_list.Show()
-
 		for attachment in self.attachment_files:
 			self.attachments_list.Append(attachment.get_display_info())
 

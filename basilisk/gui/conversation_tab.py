@@ -176,46 +176,144 @@ class ConversationTab(wx.Panel, BaseConversation):
 		- Generation parameters
 		- Control buttons
 		"""
-		sizer = wx.BoxSizer(wx.VERTICAL)
-		label = self.create_account_widget()
-		sizer.Add(label, proportion=0, flag=wx.EXPAND)
-		sizer.Add(self.account_combo, proportion=0, flag=wx.EXPAND)
-
+		main_sizer = wx.BoxSizer(wx.VERTICAL)
+		conversation_group = wx.StaticBoxSizer(
+			wx.StaticBox(self, label=_("Conversation")), wx.VERTICAL
+		)
 		label = self.create_system_prompt_widget()
-		sizer.Add(label, proportion=0, flag=wx.EXPAND)
-		sizer.Add(self.system_prompt_txt, proportion=1, flag=wx.EXPAND)
-
+		conversation_group.Add(
+			label,
+			proportion=0,
+			flag=wx.EXPAND | wx.TOP | wx.LEFT | wx.RIGHT,
+			border=5,
+		)
+		conversation_group.Add(
+			self.system_prompt_txt,
+			proportion=1,
+			flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM,
+			border=5,
+		)
+		main_sizer.Add(wx.StaticLine(self), 0, wx.EXPAND | wx.ALL, 5)
 		label = wx.StaticText(
 			self,
 			# Translators: This is a label for user prompt in the main window
 			label=_("&Messages:"),
 		)
-		sizer.Add(label, proportion=0, flag=wx.EXPAND)
-		self.messages = HistoryMsgTextCtrl(self, size=(800, 400))
-		sizer.Add(self.messages, proportion=1, flag=wx.EXPAND)
+		conversation_group.Add(
+			label, proportion=0, flag=wx.EXPAND | wx.ALL, border=5
+		)
+		self.messages = HistoryMsgTextCtrl(self)
+		conversation_group.Add(
+			self.messages,
+			proportion=1,
+			flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM,
+			border=5,
+		)
 		self.prompt_panel = PromptAttachmentsPanel(
 			self, self.conv_storage_path, self.on_submit
 		)
-		sizer.Add(self.prompt_panel, proportion=1, flag=wx.EXPAND)
+		self.prompt_panel.SetMinSize((-1, 200))
+		conversation_group.Add(
+			self.prompt_panel, proportion=0, flag=wx.EXPAND | wx.ALL, border=5
+		)
 		self.prompt_panel.set_prompt_focus()
+		main_sizer.Add(
+			conversation_group,
+			proportion=3,
+			flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM,
+			border=10,
+		)
+		params_sizer = wx.BoxSizer(wx.HORIZONTAL)
+		model_group = wx.StaticBoxSizer(
+			wx.StaticBox(self, label=_("Model Selection")), wx.VERTICAL
+		)
+		label = self.create_account_widget()
+		model_group.Add(label, proportion=0, flag=wx.EXPAND | wx.ALL, border=5)
+		model_group.Add(
+			self.account_combo,
+			proportion=0,
+			flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM,
+			border=5,
+		)
 		label = self.create_model_widget()
-		sizer.Add(label, proportion=0, flag=wx.EXPAND)
-		sizer.Add(self.model_list, proportion=0, flag=wx.ALL | wx.EXPAND)
+		model_group.Add(label, proportion=0, flag=wx.EXPAND | wx.ALL, border=5)
+		model_group.Add(
+			self.model_list,
+			proportion=0,
+			flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM,
+			border=5,
+		)
 		self.create_web_search_widget()
-		sizer.Add(self.web_search_mode, proportion=0, flag=wx.EXPAND)
-		self.create_max_tokens_widget()
-		sizer.Add(self.max_tokens_spin_label, proportion=0, flag=wx.EXPAND)
-		sizer.Add(self.max_tokens_spin_ctrl, proportion=0, flag=wx.EXPAND)
-		self.create_temperature_widget()
-		sizer.Add(self.temperature_spinner_label, proportion=0, flag=wx.EXPAND)
-		sizer.Add(self.temperature_spinner, proportion=0, flag=wx.EXPAND)
-		self.create_top_p_widget()
-		sizer.Add(self.top_p_spinner_label, proportion=0, flag=wx.EXPAND)
-		sizer.Add(self.top_p_spinner, proportion=0, flag=wx.EXPAND)
+		model_group.Add(
+			self.web_search_mode,
+			proportion=0,
+			flag=wx.EXPAND | wx.ALL,
+			border=5,
+		)
 		self.create_stream_widget()
-		sizer.Add(self.stream_mode, proportion=0, flag=wx.EXPAND)
+		model_group.Add(
+			self.stream_mode, proportion=0, flag=wx.EXPAND | wx.ALL, border=5
+		)
+		params_sizer.Add(
+			model_group, proportion=1, flag=wx.EXPAND | wx.RIGHT, border=5
+		)
+		self.advanced_box = wx.StaticBox(
+			self, label=_("Advanced generation options")
+		)
+		advanced_group = wx.StaticBoxSizer(self.advanced_box, wx.VERTICAL)
 
-		btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+		self.create_max_tokens_widget()
+		advanced_group.Add(
+			self.max_tokens_spin_label,
+			proportion=0,
+			flag=wx.EXPAND | wx.ALL,
+			border=5,
+		)
+		advanced_group.Add(
+			self.max_tokens_spin_ctrl,
+			proportion=0,
+			flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM,
+			border=5,
+		)
+		self.create_temperature_widget()
+		advanced_group.Add(
+			self.temperature_spinner_label,
+			proportion=0,
+			flag=wx.EXPAND | wx.ALL,
+			border=5,
+		)
+		advanced_group.Add(
+			self.temperature_spinner,
+			proportion=0,
+			flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM,
+			border=5,
+		)
+		self.create_top_p_widget()
+		advanced_group.Add(
+			self.top_p_spinner_label,
+			proportion=0,
+			flag=wx.EXPAND | wx.ALL,
+			border=5,
+		)
+		advanced_group.Add(
+			self.top_p_spinner,
+			proportion=0,
+			flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM,
+			border=5,
+		)
+		params_sizer.Add(
+			advanced_group, proportion=1, flag=wx.EXPAND | wx.LEFT, border=5
+		)
+		main_sizer.Add(
+			params_sizer,
+			proportion=1,
+			flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM,
+			border=10,
+		)
+		main_sizer.Add(wx.StaticLine(self), 0, wx.EXPAND | wx.ALL, 5)
+		btn_group = wx.StaticBoxSizer(
+			wx.StaticBox(self, label=_("Actions")), wx.HORIZONTAL
+		)
 
 		self.submit_btn = wx.Button(
 			self,
@@ -224,7 +322,9 @@ class ConversationTab(wx.Panel, BaseConversation):
 		)
 		self.submit_btn.Bind(wx.EVT_BUTTON, self.on_submit)
 		self.submit_btn.SetDefault()
-		btn_sizer.Add(self.submit_btn, proportion=0, flag=wx.EXPAND)
+		btn_group.Add(
+			self.submit_btn, proportion=1, flag=wx.EXPAND | wx.ALL, border=5
+		)
 
 		self.stop_completion_btn = wx.Button(
 			self,
@@ -232,7 +332,12 @@ class ConversationTab(wx.Panel, BaseConversation):
 			label=_("Stop completio&n"),
 		)
 		self.stop_completion_btn.Bind(wx.EVT_BUTTON, self.on_stop_completion)
-		btn_sizer.Add(self.stop_completion_btn, proportion=0, flag=wx.EXPAND)
+		btn_group.Add(
+			self.stop_completion_btn,
+			proportion=1,
+			flag=wx.EXPAND | wx.ALL,
+			border=5,
+		)
 		self.stop_completion_btn.Hide()
 
 		self.toggle_record_btn = wx.Button(
@@ -240,7 +345,12 @@ class ConversationTab(wx.Panel, BaseConversation):
 			# Translators: This is a label for record button in the main window
 			label=_("Record") + " (Ctrl+R)",
 		)
-		btn_sizer.Add(self.toggle_record_btn, proportion=0, flag=wx.EXPAND)
+		btn_group.Add(
+			self.toggle_record_btn,
+			proportion=1,
+			flag=wx.EXPAND | wx.ALL,
+			border=5,
+		)
 		self.toggle_record_btn.Bind(wx.EVT_BUTTON, self.toggle_recording)
 
 		self.apply_profile_btn = wx.Button(
@@ -249,13 +359,25 @@ class ConversationTab(wx.Panel, BaseConversation):
 			label=_("Apply profile") + " (Ctrl+P)",
 		)
 		self.apply_profile_btn.Bind(wx.EVT_BUTTON, self.on_choose_profile)
-		btn_sizer.Add(self.apply_profile_btn, proportion=0, flag=wx.EXPAND)
+		btn_group.Add(
+			self.apply_profile_btn,
+			proportion=1,
+			flag=wx.EXPAND | wx.ALL,
+			border=5,
+		)
 
-		sizer.Add(btn_sizer, proportion=0, flag=wx.EXPAND)
+		main_sizer.Add(
+			btn_group, proportion=0, flag=wx.EXPAND | wx.ALL, border=10
+		)
 
-		self.SetSizerAndFit(sizer)
+		self.SetSizerAndFit(main_sizer)
 
 		self.Bind(wx.EVT_CHAR_HOOK, self.on_char_hook)
+
+	def adjust_advanced_mode_setting(self):
+		"""Adjust the advanced mode settings based on the current configuration."""
+		contlols = [self.advanced_box]
+		super().adjust_advanced_mode_setting(contlols)
 
 	def init_data(self, profile: Optional[config.ConversationProfile]):
 		"""Initialize the conversation data with an optional profile.
