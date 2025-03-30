@@ -28,7 +28,6 @@ from basilisk.logger import (
 	setup_logging,
 )
 from basilisk.server_thread import ServerThread
-from basilisk.sound_manager import initialize_sound_manager
 from basilisk.updater import automatic_update_check, automatic_update_download
 
 log = logging.getLogger(__name__)
@@ -72,8 +71,6 @@ class MainApp(wx.App):
 		language = global_vars.args.language or self.conf.general.language
 		self.locale = init_translation(language)
 		log.info("translation initialized")
-		initialize_sound_manager()
-		log.info("sound manager initialized")
 		get_accessible_output()
 		log.info("accessible output initialized")
 		self.init_main_frame()
